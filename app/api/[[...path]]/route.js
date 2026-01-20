@@ -1,104 +1,227 @@
-import { MongoClient } from 'mongodb'
-import { v4 as uuidv4 } from 'uuid'
-import { NextResponse } from 'next/server'
+import { MongoClient } from 'mongodb';
+import { v4 as uuidv4 } from 'uuid';
+import { Resend } from 'resend';
 
-// MongoDB connection
-let client
-let db
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-async function connectToMongo() {
-  if (!client) {
-    client = new MongoClient(process.env.MONGO_URL)
-    await client.connect()
-    db = client.db(process.env.DB_NAME)
+let cachedClient = null;
+let cachedDb = null;
+
+async function connectToDatabase() {
+  if (cachedDb) {
+    return { client: cachedClient, db: cachedDb };
   }
-  return db
+
+  const client = await MongoClient.connect(process.env.MONGO_URL);
+  const db = client.db(process.env.DB_NAME);
+
+  cachedClient = client;
+  cachedDb = db;
+
+  return { client, db };
 }
 
-// Helper function to handle CORS
-function handleCORS(response) {
-  response.headers.set('Access-Control-Allow-Origin', process.env.CORS_ORIGINS || '*')
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-  response.headers.set('Access-Control-Allow-Credentials', 'true')
-  return response
-}
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
-// OPTIONS handler for CORS
 export async function OPTIONS() {
-  return handleCORS(new NextResponse(null, { status: 200 }))
+  return new Response(null, { headers: corsHeaders });
 }
 
-// Route handler function
-async function handleRoute(request, { params }) {
-  const { path = [] } = params
-  const route = `/${path.join('/')}`
-  const method = request.method
-
+export async function GET(request, { params }) {
   try {
-    const db = await connectToMongo()
+    const { db } = await connectToDatabase();
+    const path = params.path ? params.path.join('/') : '';
+    const { searchParams } = new URL(request.url);
 
-    // Root endpoint - GET /api/root (since /api/ is not accessible with catch-all)
-    if (route === '/root' && method === 'GET') {
-      return handleCORS(NextResponse.json({ message: "Hello World" }))
-    }
-    // Root endpoint - GET /api/root (since /api/ is not accessible with catch-all)
-    if (route === '/' && method === 'GET') {
-      return handleCORS(NextResponse.json({ message: "Hello World" }))
+    // Get all projects
+    if (path === 'projects') {
+      const projects = await db.collection('projects').find({}).sort({ featured: -1, createdAt: -1 }).toArray();
+      return Response.json({ success: true, data: projects }, { headers: corsHeaders });
     }
 
-    // Status endpoints - POST /api/status
-    if (route === '/status' && method === 'POST') {
-      const body = await request.json()
-      
-      if (!body.client_name) {
-        return handleCORS(NextResponse.json(
-          { error: "client_name is required" }, 
-          { status: 400 }
-        ))
+    // Get single project
+    if (path.startsWith('projects/')) {
+      const id = path.split('/')[1];
+      const project = await db.collection('projects').findOne({ id });
+      if (!project) {
+        return Response.json({ success: false, error: 'Project not found' }, { status: 404, headers: corsHeaders });
       }
+      return Response.json({ success: true, data: project }, { headers: corsHeaders });
+    }
 
-      const statusObj = {
-        id: uuidv4(),
-        client_name: body.client_name,
-        timestamp: new Date()
+    // Get all contacts (admin only)
+    if (path === 'contacts') {
+      const password = searchParams.get('password');
+      if (password !== process.env.ADMIN_PASSWORD) {
+        return Response.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
       }
-
-      await db.collection('status_checks').insertOne(statusObj)
-      return handleCORS(NextResponse.json(statusObj))
+      const contacts = await db.collection('contacts').find({}).sort({ createdAt: -1 }).toArray();
+      return Response.json({ success: true, data: contacts }, { headers: corsHeaders });
     }
 
-    // Status endpoints - GET /api/status
-    if (route === '/status' && method === 'GET') {
-      const statusChecks = await db.collection('status_checks')
-        .find({})
-        .limit(1000)
-        .toArray()
-
-      // Remove MongoDB's _id field from response
-      const cleanedStatusChecks = statusChecks.map(({ _id, ...rest }) => rest)
-      
-      return handleCORS(NextResponse.json(cleanedStatusChecks))
+    // Get stats
+    if (path === 'stats') {
+      const projectCount = await db.collection('projects').countDocuments();
+      const contactCount = await db.collection('contacts').countDocuments();
+      return Response.json({ 
+        success: true, 
+        data: { 
+          projects: projectCount, 
+          contacts: contactCount,
+          experience: 3
+        } 
+      }, { headers: corsHeaders });
     }
 
-    // Route not found
-    return handleCORS(NextResponse.json(
-      { error: `Route ${route} not found` }, 
-      { status: 404 }
-    ))
-
+    return Response.json({ success: false, error: 'Not found' }, { status: 404, headers: corsHeaders });
   } catch (error) {
-    console.error('API Error:', error)
-    return handleCORS(NextResponse.json(
-      { error: "Internal server error" }, 
-      { status: 500 }
-    ))
+    console.error('GET Error:', error);
+    return Response.json({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
   }
 }
 
-// Export all HTTP methods
-export const GET = handleRoute
-export const POST = handleRoute
-export const PUT = handleRoute
-export const DELETE = handleRoute
-export const PATCH = handleRoute
+export async function POST(request, { params }) {
+  try {
+    const { db } = await connectToDatabase();
+    const path = params.path ? params.path.join('/') : '';
+    const body = await request.json();
+
+    // Create contact submission
+    if (path === 'contact') {
+      const { name, email, message } = body;
+      
+      if (!name || !email || !message) {
+        return Response.json({ success: false, error: 'All fields are required' }, { status: 400, headers: corsHeaders });
+      }
+
+      const contact = {
+        id: uuidv4(),
+        name,
+        email,
+        message,
+        createdAt: new Date().toISOString()
+      };
+
+      await db.collection('contacts').insertOne(contact);
+
+      // Send email via Resend
+      try {
+        await resend.emails.send({
+          from: process.env.FROM_EMAIL,
+          to: process.env.TO_EMAIL,
+          subject: `Portfolio Contact: ${name}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #333;">New Contact Form Submission</h2>
+              <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p><strong>Name:</strong> ${name}</p>
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Message:</strong></p>
+                <p style="white-space: pre-wrap;">${message}</p>
+              </div>
+              <p style="color: #666; font-size: 12px;">Received at: ${new Date().toLocaleString()}</p>
+            </div>
+          `
+        });
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        // Continue even if email fails
+      }
+
+      return Response.json({ success: true, data: contact }, { headers: corsHeaders });
+    }
+
+    // Create project (admin only)
+    if (path === 'projects') {
+      const { password, ...projectData } = body;
+      
+      if (password !== process.env.ADMIN_PASSWORD) {
+        return Response.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+      }
+
+      const project = {
+        id: uuidv4(),
+        ...projectData,
+        createdAt: new Date().toISOString()
+      };
+
+      await db.collection('projects').insertOne(project);
+      return Response.json({ success: true, data: project }, { headers: corsHeaders });
+    }
+
+    return Response.json({ success: false, error: 'Not found' }, { status: 404, headers: corsHeaders });
+  } catch (error) {
+    console.error('POST Error:', error);
+    return Response.json({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
+  }
+}
+
+export async function PUT(request, { params }) {
+  try {
+    const { db } = await connectToDatabase();
+    const path = params.path ? params.path.join('/') : '';
+    const body = await request.json();
+
+    // Update project (admin only)
+    if (path.startsWith('projects/')) {
+      const id = path.split('/')[1];
+      const { password, ...projectData } = body;
+      
+      if (password !== process.env.ADMIN_PASSWORD) {
+        return Response.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+      }
+
+      const result = await db.collection('projects').updateOne(
+        { id },
+        { $set: { ...projectData, updatedAt: new Date().toISOString() } }
+      );
+
+      if (result.matchedCount === 0) {
+        return Response.json({ success: false, error: 'Project not found' }, { status: 404, headers: corsHeaders });
+      }
+
+      const updatedProject = await db.collection('projects').findOne({ id });
+      return Response.json({ success: true, data: updatedProject }, { headers: corsHeaders });
+    }
+
+    return Response.json({ success: false, error: 'Not found' }, { status: 404, headers: corsHeaders });
+  } catch (error) {
+    console.error('PUT Error:', error);
+    return Response.json({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
+  }
+}
+
+export async function DELETE(request, { params }) {
+  try {
+    const { db } = await connectToDatabase();
+    const path = params.path ? params.path.join('/') : '';
+    const { searchParams } = new URL(request.url);
+    const password = searchParams.get('password');
+
+    if (password !== process.env.ADMIN_PASSWORD) {
+      return Response.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+    }
+
+    // Delete project (admin only)
+    if (path.startsWith('projects/')) {
+      const id = path.split('/')[1];
+      const result = await db.collection('projects').deleteOne({ id });
+
+      if (result.deletedCount === 0) {
+        return Response.json({ success: false, error: 'Project not found' }, { status: 404, headers: corsHeaders });
+      }
+
+      return Response.json({ success: true, message: 'Project deleted' }, { headers: corsHeaders });
+    }
+
+    return Response.json({ success: false, error: 'Not found' }, { status: 404, headers: corsHeaders });
+  } catch (error) {
+    console.error('DELETE Error:', error);
+    return Response.json({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
+  }
+}
