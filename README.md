@@ -55,7 +55,7 @@ A minimalistic, modern portfolio website showcasing AI/ML and full-stack develop
 1. **Clone and Install**
 ```bash
 cd /app
-yarn install
+npm install
 ```
 
 2. **Environment Variables**
@@ -76,7 +76,7 @@ node scripts/seed-projects.js
 
 4. **Start Development Server**
 ```bash
-yarn dev
+npm run dev
 # or using supervisor
 sudo supervisorctl restart nextjs
 ```
