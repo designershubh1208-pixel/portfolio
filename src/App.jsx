@@ -101,22 +101,25 @@ function Preloader({ percent, loading, transitioning, preloaderTextRef }) {
         opacity: 0.13,
         zIndex: 1,
       }} />
-      {/* Loading percentage bottom-right */}
-      <div style={{
-        position: 'absolute',
-        bottom: '5vh',
-        right: '5vw',
-        fontFamily: 'Syne, sans-serif',
-        fontWeight: 900,
-        fontSize: 'clamp(3rem, 10vw, 9rem)',
-        color: '#fff',
-        opacity: loading && !transitioning ? 0.18 : 0,
-        transition: 'opacity 0.5s cubic-bezier(.77,0,.18,1)',
-        zIndex: 2,
-        userSelect: 'none',
-        letterSpacing: '0.01em',
-        textShadow: '0 2px 16px rgba(59,130,246,0.12)',
-      }}>
+      {/* Loading percentage under the border */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          bottom: 'calc(2.5vh - 2px)', // just under the border
+          transform: 'translateX(-50%)',
+          fontFamily: 'Syne, sans-serif',
+          fontWeight: 900,
+          fontSize: 'clamp(2.2rem, 5vw, 3.5rem)',
+          color: '#fff',
+          opacity: loading && !transitioning ? 0.18 : 0,
+          transition: 'opacity 0.5s cubic-bezier(.77,0,.18,1)',
+          zIndex: 2,
+          userSelect: 'none',
+          letterSpacing: '0.01em',
+          textShadow: '0 2px 16px rgba(59,130,246,0.12)',
+        }}
+      >
         {percent}%
       </div>
       {/* Main text: Only ShubhSanket, centered, bigger, animates to hero */}
@@ -129,6 +132,8 @@ function Preloader({ percent, loading, transitioning, preloaderTextRef }) {
           justifyContent: 'center',
           width: '100vw',
           height: '100vh',
+          maxWidth: '100%',
+          overflow: 'hidden',
         }}
       >
         <div
@@ -136,9 +141,9 @@ function Preloader({ percent, loading, transitioning, preloaderTextRef }) {
           style={{
             fontFamily: 'Syne, sans-serif',
             fontWeight: 900,
-            fontSize: 'clamp(4rem, 14vw, 12rem)',
+            fontSize: 'clamp(2.5rem, 10vw, 7.5rem)',
             letterSpacing: '0.01em',
-            lineHeight: 1.05,
+            lineHeight: 1.08,
             background: 'linear-gradient(90deg, #3B82F6 0%, #8B5CF6 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -150,6 +155,13 @@ function Preloader({ percent, loading, transitioning, preloaderTextRef }) {
               : 'opacity 0.7s cubic-bezier(.77,0,.18,1), transform 0.7s cubic-bezier(.77,0,.18,1)',
             textAlign: 'center',
             willChange: transitioning ? 'transform, opacity' : undefined,
+            maxWidth: '100%',
+            overflow: 'hidden',
+            whiteSpace: 'pre-line',
+            wordBreak: 'break-word',
+            hyphens: 'auto',
+            padding: '0 2vw',
+            boxSizing: 'border-box',
           }}
         >
           ShubhSanket
