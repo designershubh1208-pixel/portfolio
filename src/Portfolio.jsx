@@ -439,7 +439,7 @@ export default function Portfolio({ heroRef }) {
         <div className="hero-line" style={{ top: "80%" }} />
         <div style={{ position: "relative", zIndex: 1 }}>
           <div className="hero-eyebrow">Full-Stack Engineer · AI Architect · Web3 Builder</div>
-          <h1 className="hero-headline" ref={heroRef}><em>Shubhsanket</em></h1>
+          <h1 className="hero-headline" ref={heroRef}><em>Shubhsanket Sharma</em></h1>
           <TypingSubtitle />
           <a href="#projects" className="hero-cta">
             View My Work
