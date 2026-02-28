@@ -1,3 +1,19 @@
+// LoadingBar component for scroll progress
+function LoadingBar({ progress }) {
+  return (
+    <div style={{ width: "100%", height: 4, background: "#23232a", position: "fixed", top: 0, left: 0, zIndex: 2500 }}>
+      <div
+        style={{
+          height: "100%",
+          width: `${Math.max(0, Math.min(1, progress)) * 100}%`,
+          background: "linear-gradient(90deg, #4f8cff 0%, #a259ff 100%)",
+          borderRadius: 2,
+          transition: "width 0.2s cubic-bezier(0.4,0,0.2,1)",
+        }}
+      />
+    </div>
+  );
+}
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── DATA ──
@@ -414,6 +430,7 @@ export default function Portfolio({ heroRef }) {
 
   return (
     <>
+      <LoadingBar progress={progress} />
       <style>{CSS}</style>
 
       {/* Progress Bar */}
