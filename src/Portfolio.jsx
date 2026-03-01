@@ -154,13 +154,6 @@ section{position:relative;overflow:hidden;}
 .marquee-track-reverse{animation-direction:reverse;animation-duration:25s;}
 .marquee-row{overflow:hidden;margin-bottom:20px;}
 @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-section{position:relative;transform-style:preserve-3d;will-change:transform;transition:transform .3s ease-out;}
-section:not(#hero){position:sticky;top:0;z-index:10;}
-#about{z-index:11;}
-#skills{z-index:12;}
-#projects{z-index:13;}
-#blog{z-index:14;}
-#contact{z-index:15;}
 .skill-card{flex-shrink:0;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.04);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:all .3s cubic-bezier(.23,1,.32,1);cursor:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.06);position:relative;overflow:hidden;}
 .skill-card::before{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 0%,rgba(255,255,255,.04),transparent 60%);}
 .skill-card:hover{background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.3);transform:scale(1.08);box-shadow:0 0 28px rgba(59,130,246,.25),inset 0 1px 0 rgba(59,130,246,.2);}
@@ -522,7 +515,7 @@ export default function Portfolio({ heroRef }) {
       </section>
 
       {/* Trust Bar */}
-      <div style={{ background: 'rgba(255,255,255,.02)', borderTop: '1px solid rgba(255,255,255,.06)', borderBottom: '1px solid rgba(255,255,255,.06)', padding: '24px 8vw', opacity: 0, animation: 'fadeUp .9s 1.05s forwards', position: 'relative', zIndex: 10 }}>
+      <div style={{ background: 'rgba(255,255,255,.02)', borderTop: '1px solid rgba(255,255,255,.06)', borderBottom: '1px solid rgba(255,255,255,.06)', padding: '24px 8vw', opacity: 0, animation: 'fadeUp .9s 1.05s forwards' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--accent-blue)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
