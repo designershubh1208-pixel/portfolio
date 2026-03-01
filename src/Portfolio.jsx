@@ -401,7 +401,6 @@ export default function Portfolio({ heroRef }) {
   const [progress, setProgress] = useState(0);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [ringPos, setRingPos] = useState({ x: 0, y: 0 });
-  const [scrollY, setScrollY] = useState(0);
   const ringRef = useRef({ x: 0, y: 0 });
   const targetRef = useRef({ x: 0, y: 0 });
   const animRef = useRef(null);
@@ -430,15 +429,13 @@ export default function Portfolio({ heroRef }) {
   // Scroll: progress + parallax
   useEffect(() => {
     const onScroll = () => {
-      const sy = window.scrollY;
-      setScrollY(sy);
-      setProgress(sy / (document.body.scrollHeight - window.innerHeight));
+      setProgress(window.scrollY / (document.body.scrollHeight - window.innerHeight));
       const heroBg = document.querySelector(".hero-bg");
-      if (heroBg) heroBg.style.transform = `translateY(${sy * 0.3}px)`;
+      if (heroBg) heroBg.style.transform = `translateY(${window.scrollY * 0.3}px)`;
       const mono = document.querySelector(".about-monogram");
       if (mono) {
         const top = document.getElementById("about")?.offsetTop || 0;
-        mono.style.transform = `translateY(${(sy - top) * 0.15}px)`;
+        mono.style.transform = `translateY(${(window.scrollY - top) * 0.15}px)`;
       }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -464,15 +461,6 @@ export default function Portfolio({ heroRef }) {
   const row1 = [...SKILLS.slice(0, half), ...SKILLS.slice(0, half)];
   const row2 = [...SKILLS.slice(half), ...SKILLS.slice(half)];
 
-  const getSectionTransform = (sectionId) => {
-    const section = document.getElementById(sectionId);
-    if (!section) return "";
-    const rect = section.getBoundingClientRect();
-    const scrollProgress = Math.max(0, Math.min(1, 1 - (rect.top / window.innerHeight)));
-    const scale = 0.95 + (scrollProgress * 0.05);
-    return `scale(${scale})`;
-  };
-
   return (
     <>
       <LoadingBar progress={progress} />
@@ -495,7 +483,7 @@ export default function Portfolio({ heroRef }) {
       <NavDock activeSection={activeSection} />
 
       {/* ══ HERO ══ */}
-      <section id="hero" style={{ transform: scrollY > 0 ? `translateY(${scrollY * 0.5}px) scale(${1 - Math.min(scrollY / 1000, 0.05)})` : "" }}>
+      <section id="hero">
         <div className="hero-bg" />
         <div className="hero-line" style={{ top: "20%" }} />
         <div className="hero-line" style={{ top: "80%" }} />
