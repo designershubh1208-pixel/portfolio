@@ -16,7 +16,7 @@ function LoadingBar({ progress }) {
 }
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// ── DATA ──
+// ── DATA ─_
 const SKILLS = [
   { name: "React.js", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" },
   { name: "Next.js", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg" },
@@ -77,9 +77,19 @@ html{scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;}
 html::-webkit-scrollbar{display:none;}
 body{background:var(--bg-deep);color:var(--white);font-family:var(--font-body);overflow-x:hidden;cursor:none;}
 a{cursor:none;}button{cursor:none;}
-.cursor{position:fixed;pointer-events:none;z-index:9999;mix-blend-mode:difference;}
-.cursor-dot{width:8px;height:8px;background:var(--white);border-radius:50%;transform:translate(-50%,-50%);transition:transform .15s ease;}
-.cursor-ring{width:36px;height:36px;border:1px solid rgba(255,255,255,.5);border-radius:50%;transform:translate(-50%,-50%);transition:width .3s ease,height .3s ease,opacity .3s ease;}
+.cursor{position:fixed;pointer-events:none;z-index:9999;filter:drop-shadow(0 0 10px rgba(59,130,246,.3));}
+.cursor-dot{width:8px;height:8px;background:radial-gradient(circle,white,var(--accent-blue));border-radius:50%;transform:translate(-50%,-50%);animation:morphDot 4s ease-in-out infinite;position:relative;}
+.cursor-dot::before,.cursor-dot::after{content:'';position:absolute;width:4px;height:4px;background:var(--accent-violet);border-radius:50%;opacity:.6;}
+.cursor-dot::before{top:-12px;left:50%;animation:orbit1 3s linear infinite;}
+.cursor-dot::after{top:8px;left:50%;animation:orbit2 2.5s linear infinite;}
+.cursor-ring{width:40px;height:40px;border-radius:50%;transform:translate(-50%,-50%);background:conic-gradient(from 0deg,transparent 60%,rgba(59,130,246,.4) 80%,rgba(139,92,246,.4) 100%,transparent);animation:spinRing 4s linear infinite;position:relative;}
+.cursor-ring::before{content:'';position:absolute;inset:-8px;border-radius:50%;border:1px solid rgba(59,130,246,.15);animation:pulseRing 2s ease-in-out infinite;}
+.cursor-ring::after{content:'';position:absolute;inset:8px;border-radius:50%;border:1px dashed rgba(139,92,246,.3);animation:spinRing 6s linear infinite reverse;}
+@keyframes morphDot{0%,100%{transform:translate(-50%,-50%) scale(1);box-shadow:0 0 15px rgba(59,130,246,.6)}50%{transform:translate(-50%,-50%) scale(1.2);box-shadow:0 0 25px rgba(139,92,246,.8)}}
+@keyframes orbit1{from{transform:translate(-50%,-50%) rotate(0deg) translateX(12px) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg) translateX(12px) rotate(-360deg)}}
+@keyframes orbit2{from{transform:translate(-50%,-50%) rotate(0deg) translateX(10px) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(-360deg) translateX(10px) rotate(360deg)}}
+@keyframes spinRing{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes pulseRing{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.1);opacity:.6}}
 .grain{position:fixed;inset:-50%;width:200%;height:200%;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");opacity:.035;pointer-events:none;z-index:9998;animation:grain 8s steps(10) infinite;}
 @keyframes grain{0%,100%{transform:translate(0,0)}10%{transform:translate(-5%,-5%)}20%{transform:translate(-10%,5%)}30%{transform:translate(5%,-10%)}40%{transform:translate(-5%,15%)}50%{transform:translate(-10%,5%)}60%{transform:translate(15%,0)}70%{transform:translate(0,10%)}80%{transform:translate(-15%,0)}90%{transform:translate(10%,5%)}}
 .progress-bar{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--accent-blue),var(--accent-violet));z-index:9999;transform-origin:left;pointer-events:none;}
