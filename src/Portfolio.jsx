@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const HERO_PORTRAIT_SRC = `${import.meta.env.BASE_URL}image.png`;
 
@@ -111,6 +113,8 @@ function scrollToId(id) {
 }
 
 export default function Portfolio({ heroRef }) {
+  const rootRef = useRef(null);
+  const heroSectionRef = useRef(null);
   const fallbackHeroRef = useRef(null);
   const resolvedHeroRef = heroRef ?? fallbackHeroRef;
 
@@ -184,24 +188,162 @@ export default function Portfolio({ heroRef }) {
   }, []);
 
   useEffect(() => {
-    const el = portraitRef.current;
-    if (!el) return;
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    if (prefersReducedMotion) return;
 
-    let raf = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = window.requestAnimationFrame(() => {
-        const y = window.scrollY || 0;
-        const t = Math.min(42, y * 0.06);
-        el.style.transform = `translateY(${t}px)`;
+    gsap.registerPlugin(ScrollTrigger);
+
+    const ctx = gsap.context(() => {
+      const hero = document.getElementById("hero");
+      if (hero) {
+        gsap.to(".hero-photo", {
+          y: 42,
+          ease: "none",
+          scrollTrigger: {
+            trigger: hero,
+            start: "top top",
+            end: "bottom top",
+            scrub: 1.15,
+            invalidateOnRefresh: true,
+          },
+        });
+
+        gsap.to(".hero-plate", {
+          y: 18,
+          ease: "none",
+          scrollTrigger: {
+            trigger: hero,
+            start: "top top",
+            end: "bottom top",
+            scrub: 1.15,
+            invalidateOnRefresh: true,
+          },
+        });
+
+        gsap.to(".hero-float-a", {
+          x: 46,
+          y: -110,
+          rotate: 10,
+          scale: 1.05,
+          ease: "none",
+          scrollTrigger: {
+            trigger: hero,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: 1.25,
+            invalidateOnRefresh: true,
+          },
+        });
+
+        gsap.to(".hero-float-b", {
+          x: -34,
+          y: 92,
+          rotate: -8,
+          scale: 1.04,
+          ease: "none",
+          scrollTrigger: {
+            trigger: hero,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: 1.3,
+            invalidateOnRefresh: true,
+          },
+        });
+
+        gsap.to(".hero-vertical", {
+          opacity: 0.14,
+          ease: "none",
+          scrollTrigger: {
+            trigger: hero,
+            start: "top top",
+            end: "bottom top",
+            scrub: 1.1,
+            invalidateOnRefresh: true,
+          },
+        });
+      }
+
+      gsap.utils.toArray(".project").forEach((card) => {
+        const grid = card.querySelector(".project-visual-grid");
+        const num = card.querySelector(".project-num");
+
+        if (grid) {
+          gsap.to(grid, {
+            backgroundPosition: "0px -220px, -220px 0px",
+            ease: "none",
+            scrollTrigger: {
+              trigger: card,
+              start: "top bottom",
+              end: "bottom top",
+              scrub: 1.15,
+              invalidateOnRefresh: true,
+            },
+          });
+        }
+
+        if (num) {
+          gsap.to(num, {
+            y: -18,
+            opacity: 0.38,
+            ease: "none",
+            scrollTrigger: {
+              trigger: card,
+              start: "top 85%",
+              end: "bottom 15%",
+              scrub: 1.1,
+              invalidateOnRefresh: true,
+            },
+          });
+        }
       });
+    }, rootRef);
+
+    return () => ctx.revert();
+  }, []);
+
+  useEffect(() => {
+    const heroEl = heroSectionRef.current;
+    if (!heroEl) return;
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    const finePointer = window.matchMedia("(pointer: fine)").matches;
+    if (prefersReducedMotion || !finePointer) return;
+
+    const setPos = (e) => {
+      const r = heroEl.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      heroEl.style.setProperty("--cursor-x", `${x}px`);
+      heroEl.style.setProperty("--cursor-y", `${y}px`);
+
+      const isMagnifying = Boolean(e.target?.closest?.("[data-magnify]"));
+      heroEl.classList.toggle("hero-magnifying", isMagnifying);
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
+    const onEnter = (e) => {
+      heroEl.classList.add("hero-cursor-on");
+      setPos(e);
+    };
+
+    const onMove = (e) => setPos(e);
+
+    const onLeave = () => {
+      heroEl.classList.remove("hero-cursor-on");
+      heroEl.classList.remove("hero-magnifying");
+    };
+
+    heroEl.addEventListener("pointerenter", onEnter);
+    heroEl.addEventListener("pointermove", onMove);
+    heroEl.addEventListener("pointerleave", onLeave);
+
     return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("scroll", onScroll);
+      heroEl.removeEventListener("pointerenter", onEnter);
+      heroEl.removeEventListener("pointermove", onMove);
+      heroEl.removeEventListener("pointerleave", onLeave);
     };
   }, []);
 
@@ -215,7 +357,7 @@ export default function Portfolio({ heroRef }) {
   }, []);
 
   return (
-    <div className="site">
+    <div className="site" ref={rootRef}>
       <div className="chapter-indicator" aria-hidden>
         CH. {pad2(activeChapterIndex)} / {pad2(chapters.length - 1)}
       </div>
@@ -294,12 +436,12 @@ export default function Portfolio({ heroRef }) {
       </div>
 
       <main>
-        <section id="hero" className="hero" data-section>
+        <section id="hero" ref={heroSectionRef} className="hero" data-section>
           <div className="hero-vertical" aria-hidden>
             ENGINEER / SYSTEMS / INTELLIGENCE
           </div>
 
-          <div className="hero-left">
+          <div className="hero-left" data-magnify>
             <div className="hero-meta" data-reveal>
               <div ref={resolvedHeroRef} className="hero-name">
                 SHUBH SANKET
@@ -361,7 +503,7 @@ export default function Portfolio({ heroRef }) {
             </div>
           </div>
 
-          <div className="hero-right" aria-label="Portrait">
+          <div className="hero-right" aria-label="Portrait" data-magnify>
             <div className="hero-plate" aria-hidden />
             <figure className="hero-portrait">
               <img
@@ -380,6 +522,81 @@ export default function Portfolio({ heroRef }) {
 
           <div className="hero-float hero-float-a" aria-hidden />
           <div className="hero-float hero-float-b" aria-hidden />
+
+          <div className="hero-magnifier-layer" aria-hidden="true" inert>
+            <div className="hero-magnifier-content">
+              <div className="hero-vertical" aria-hidden>
+                ENGINEER / SYSTEMS / INTELLIGENCE
+              </div>
+
+              <div className="hero-left">
+                <div className="hero-meta">
+                  <div className="hero-name">SHUBH SANKET</div>
+                  <span className="meta-divider" aria-hidden />
+                  <div className="hero-role">SYSTEMS / PRODUCT</div>
+                </div>
+
+                <div className="hero-type">
+                  <div className="hero-word hero-word-xl">FULL</div>
+                  <div className="hero-word hero-word-xl hero-word-shift">STACK</div>
+                  <div className="hero-word hero-word-md hero-word-offset">AI / ML</div>
+                  <div className="hero-word hero-word-lg hero-word-offset2">BLOCKCHAIN</div>
+                  <div className="hero-word hero-word-md hero-word-offset3">SEO SYSTEMS</div>
+                </div>
+
+                <p className="hero-subtitle">
+                  I design and ship production-grade software: full stack applications, AI/ML
+                  systems, and protocol-level infrastructure — with an editorial approach to
+                  clarity, performance, and long-term maintainability.
+                </p>
+
+                <div className="hero-actions">
+                  <span className="btn btn-primary" aria-hidden>
+                    Selected Work
+                  </span>
+                  <span className="btn btn-ghost" aria-hidden>
+                    Contact
+                  </span>
+                </div>
+
+                <div className="hero-annotations">
+                  <div className="anno">
+                    <div className="anno-k">Edition</div>
+                    <div className="anno-v">01</div>
+                  </div>
+                  <div className="anno">
+                    <div className="anno-k">Focus</div>
+                    <div className="anno-v">Systems</div>
+                  </div>
+                  <div className="anno">
+                    <div className="anno-k">Mode</div>
+                    <div className="anno-v">Build</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="hero-right" aria-hidden>
+                <div className="hero-plate" aria-hidden />
+                <figure className="hero-portrait">
+                  <img
+                    className="hero-photo"
+                    src={HERO_PORTRAIT_SRC}
+                    alt=""
+                    draggable={false}
+                  />
+                </figure>
+                <div className="hero-caption">
+                  <div className="caption-k">Caption</div>
+                  <div className="caption-v">Calm interfaces. Serious engineering.</div>
+                </div>
+              </div>
+
+              <div className="hero-float hero-float-a" aria-hidden />
+              <div className="hero-float hero-float-b" aria-hidden />
+            </div>
+          </div>
+
+          <div className="hero-cursor" aria-hidden />
         </section>
 
         <section id="full-stack" className="chapter" data-section>
