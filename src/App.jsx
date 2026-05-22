@@ -33,11 +33,15 @@ function App() {
   useEffect(() => {
     if (!transitioning) return;
     // Wait for the transition animation to finish
+    let doneTimeout;
     const timeout = setTimeout(() => {
       setLoading(false);
-      setTimeout(() => setPreloaderDone(true), 400);
+      doneTimeout = setTimeout(() => setPreloaderDone(true), 760);
     }, 900);
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      clearTimeout(doneTimeout);
+    };
   }, [transitioning]);
 
   // Get hero headline position for animation
@@ -65,7 +69,12 @@ function App() {
           preloaderTextRef={preloaderTextRef}
         />
       )}
-      <div style={{ opacity: preloaderDone ? 1 : 0, transition: 'opacity 0.5s cubic-bezier(.77,0,.18,1)' }}>
+      <div
+        style={{
+          opacity: loading ? 0 : 1,
+          transition: 'opacity 0.75s cubic-bezier(.77,0,.18,1)',
+        }}
+      >
         <Portfolio heroRef={heroRef} />
       </div>
     </>
@@ -73,8 +82,6 @@ function App() {
 }
 
 function Preloader({ percent, loading, transitioning, preloaderTextRef }) {
-  // Gradient and noise background
-  // Typography matches hero
   return (
     <div
       style={{
@@ -84,23 +91,37 @@ function Preloader({ percent, loading, transitioning, preloaderTextRef }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0B0B1A 0%, #111122 100%)',
+        background: 'linear-gradient(180deg, var(--bg-ivory) 0%, var(--bg-cream) 100%)',
         overflow: 'hidden',
-        transition: loading ? 'none' : 'opacity 0.7s cubic-bezier(.77,0,.18,1), transform 0.7s cubic-bezier(.77,0,.18,1)',
-        opacity: loading || transitioning ? 1 : 0,
-        pointerEvents: loading || transitioning ? 'auto' : 'none',
-        transform: loading || transitioning ? 'scale(1) translateY(0)' : 'scale(0.98) translateY(-40px)',
+        transition: 'opacity 0.7s cubic-bezier(.77,0,.18,1), transform 0.7s cubic-bezier(.77,0,.18,1)',
+        opacity: loading ? 1 : 0,
+        transform: loading ? 'scale(1) translateY(0)' : 'scale(0.99) translateY(-10px)',
       }}
     >
-      {/* Noise overlay */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        pointerEvents: 'none',
-        background: 'url("https://www.transparenttextures.com/patterns/noise.png")',
-        opacity: 0.13,
-        zIndex: 1,
-      }} />
+      {/* Grain overlay (local, no external assets) */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          zIndex: 1,
+          opacity: 0.075,
+          mixBlendMode: 'multiply',
+          backgroundImage:
+            'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'180\' height=\'180\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'180\' height=\'180\' filter=\'url(%23n)\' opacity=\'.32\'/%3E%3C/svg%3E")',
+        }}
+      />
+      {/* Editorial frame */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 'var(--pad)',
+          pointerEvents: 'none',
+          zIndex: 2,
+          border: '1px solid rgba(23, 21, 19, 0.16)',
+          borderRadius: 'var(--radius)',
+        }}
+      />
       {/* Loading percentage under the border */}
       <div
         style={{
@@ -108,16 +129,15 @@ function Preloader({ percent, loading, transitioning, preloaderTextRef }) {
           left: '50%',
           bottom: 'calc(2.5vh - 2px)', // just under the border
           transform: 'translateX(-50%)',
-          fontFamily: 'Syne, sans-serif',
-          fontWeight: 900,
-          fontSize: 'clamp(2.2rem, 5vw, 3.5rem)',
-          color: '#fff',
-          opacity: loading && !transitioning ? 0.18 : 0,
+          fontFamily: 'var(--font-display)',
+          fontWeight: 700,
+          fontSize: 'clamp(1.8rem, 4.2vw, 3rem)',
+          color: 'var(--ink)',
+          opacity: loading && !transitioning ? 0.16 : 0,
           transition: 'opacity 0.5s cubic-bezier(.77,0,.18,1)',
-          zIndex: 2,
+          zIndex: 3,
           userSelect: 'none',
-          letterSpacing: '0.01em',
-          textShadow: '0 2px 16px rgba(59,130,246,0.12)',
+          letterSpacing: '0.12em',
         }}
       >
         {percent}%
@@ -126,7 +146,7 @@ function Preloader({ percent, loading, transitioning, preloaderTextRef }) {
       <div
         style={{
           position: 'relative',
-          zIndex: 3,
+          zIndex: 4,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -139,32 +159,23 @@ function Preloader({ percent, loading, transitioning, preloaderTextRef }) {
         <div
           ref={preloaderTextRef}
           style={{
-            fontFamily: 'Syne, sans-serif',
-            fontWeight: 900,
-            fontSize: 'clamp(2.5rem, 10vw, 7.5rem)',
-            letterSpacing: '0.01em',
+            fontFamily: 'var(--font-display)',
+            fontWeight: 700,
+            fontSize: 'clamp(2.2rem, 8.8vw, 7.2rem)',
+            letterSpacing: '0.22em',
             lineHeight: 1.08,
-            background: 'linear-gradient(90deg, #3B82F6 0%, #8B5CF6 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            color: 'transparent',
-            opacity: loading ? 0.97 : 0,
-            transform: loading ? 'translateY(0px)' : 'translateY(-30px)',
-            transition: transitioning
-              ? undefined
-              : 'opacity 0.7s cubic-bezier(.77,0,.18,1), transform 0.7s cubic-bezier(.77,0,.18,1)',
+            textTransform: 'uppercase',
+            color: 'var(--ink)',
             textAlign: 'center',
-            willChange: transitioning ? 'transform, opacity' : undefined,
+            willChange: 'transform, opacity',
             maxWidth: '100%',
             overflow: 'hidden',
-            whiteSpace: 'pre-line',
-            wordBreak: 'break-word',
-            hyphens: 'auto',
+            whiteSpace: 'nowrap',
             padding: '0 2vw',
             boxSizing: 'border-box',
           }}
         >
-          ShubhSanket
+          SHUBH SANKET
         </div>
       </div>
     </div>
