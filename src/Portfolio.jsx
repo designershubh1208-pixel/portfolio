@@ -1,10 +1,101 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePortfolioContent } from "./hooks/usePortfolioContent";
+import { useScrollAnimations } from "./hooks/useScrollAnimations";
 
-const HERO_PORTRAIT_SRC = `${import.meta.env.BASE_URL}image.png`;
+const INTERACTIVE_SELECTOR =
+  "a, button, input, textarea, select, label, [role='button'], [role='link']";
+
+function useNoirCursor(enabled) {
+  const rootRef = useRef(null);
+  const dotRef = useRef(null);
+  const ringRef = useRef(null);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+
+    const fine = window.matchMedia("(pointer: fine)");
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (!fine.matches || reduced.matches) return undefined;
+
+    const root = rootRef.current;
+    const dot = dotRef.current;
+    const ring = ringRef.current;
+    if (!root || !dot || !ring) return undefined;
+
+    let mx = -100;
+    let my = -100;
+    let rx = -100;
+    let ry = -100;
+    let visible = false;
+    let raf = 0;
+
+    const setVisible = (on) => {
+      if (visible === on) return;
+      visible = on;
+      root.classList.toggle("is-visible", on);
+      document.documentElement.classList.toggle("noir-cursor-on", on);
+    };
+
+    const onMove = (e) => {
+      mx = e.clientX;
+      my = e.clientY;
+      setVisible(true);
+      const el = document.elementFromPoint(mx, my);
+      document.documentElement.classList.toggle(
+        "noir-cursor-hover",
+        Boolean(el instanceof Element && el.closest(INTERACTIVE_SELECTOR))
+      );
+    };
+
+    const onLeave = () => {
+      setVisible(false);
+      document.documentElement.classList.remove("noir-cursor-hover");
+    };
+
+    const onDown = () => {
+      document.documentElement.classList.add("noir-cursor-press");
+    };
+
+    const onUp = () => {
+      document.documentElement.classList.remove("noir-cursor-press");
+    };
+
+    const tick = () => {
+      rx += (mx - rx) * 0.16;
+      ry += (my - ry) * 0.16;
+      dot.style.transform = `translate3d(${mx}px, ${my}px, 0) translate(-50%, -50%)`;
+      ring.style.transform = `translate3d(${rx}px, ${ry}px, 0) translate(-50%, -50%)`;
+      raf = requestAnimationFrame(tick);
+    };
+
+    document.addEventListener("mousemove", onMove, { passive: true });
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("mouseup", onUp);
+    document.documentElement.addEventListener("mouseleave", onLeave);
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("mouseup", onUp);
+      document.documentElement.removeEventListener("mouseleave", onLeave);
+      document.documentElement.classList.remove(
+        "noir-cursor-on",
+        "noir-cursor-hover",
+        "noir-cursor-press"
+      );
+      setVisible(false);
+    };
+  }, [enabled]);
+
+  return { rootRef, dotRef, ringRef };
+}
+
+const PORTRAIT_SRC = `${import.meta.env.BASE_URL}image.png`;
 
 const NAV_ITEMS = [
+  { id: "about", label: "About Me" },
   { id: "full-stack", label: "Full Stack Engineering" },
   { id: "ai-ml", label: "AI/ML Systems" },
   { id: "blockchain", label: "Blockchain Infrastructure" },
@@ -14,6 +105,61 @@ const NAV_ITEMS = [
   { id: "tech-stack", label: "Tech Stack" },
   { id: "case-studies", label: "Case Studies" },
   { id: "contact", label: "Contact / Collaboration" },
+];
+
+const DISCIPLINES = [
+  {
+    id: "full-stack",
+    eyebrow: "02 — Discipline",
+    title: "Full Stack Engineering",
+    description:
+      "Architectural calm: clean boundaries, measurable performance, and maintainable systems that scale without sacrificing ergonomics.",
+    bullets: [
+      "Component systems & design primitives",
+      "APIs, data modeling, and service contracts",
+      "Performance budgets & observability",
+      "Production-grade DX and tooling",
+    ],
+  },
+  {
+    id: "ai-ml",
+    eyebrow: "03 — Discipline",
+    title: "AI/ML Systems",
+    description:
+      "From prototype to production: evaluation-first pipelines, safety-minded UX, and deployment patterns that respect latency, cost, and reliability.",
+    bullets: [
+      "RAG, retrieval strategy, and data quality",
+      "Model serving, caching, and latency control",
+      "Human-in-the-loop workflows & guardrails",
+      "Instrumentation & continuous evaluation",
+    ],
+  },
+  {
+    id: "blockchain",
+    eyebrow: "04 — Discipline",
+    title: "Blockchain Infrastructure",
+    description:
+      "Protocol-aware engineering: clarity around trust surfaces, deterministic behavior, and composable architecture designed for long-lived systems.",
+    bullets: [
+      "Smart contracts & on-chain verification",
+      "Indexing, events, and off-chain services",
+      "Security mindset & failure-mode design",
+      "Developer UX for Web3 products",
+    ],
+  },
+  {
+    id: "seo",
+    eyebrow: "05 — Discipline",
+    title: "SEO & Growth Intelligence",
+    description:
+      "Growth as engineering: technical SEO, performance, and instrumentation as a compounding system — not a checklist.",
+    bullets: [
+      "Core Web Vitals & rendering strategy",
+      "Programmatic SEO systems",
+      "Analytics integrity & event design",
+      "Content architecture for discovery",
+    ],
+  },
 ];
 
 const PROJECTS = [
@@ -51,13 +197,21 @@ const TECH_STACK = [
   "Next.js",
   "Node.js",
   "TypeScript",
+  "JavaScript",
   "Python",
   "PostgreSQL",
   "MongoDB",
+  "Redis",
+  "Firebase",
   "PyTorch",
+  "TensorFlow",
   "Solidity",
   "EVM",
   "Docker",
+  "n8n",
+  "WordPress",
+  "Webflow",
+  "Framer",
   "Figma",
 ];
 
@@ -102,30 +256,50 @@ const CASE_STUDIES = [
   },
 ];
 
-function pad2(n) {
-  return String(n).padStart(2, "0");
-}
-
 function scrollToId(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-export default function Portfolio({ heroRef }) {
-  const rootRef = useRef(null);
-  const heroSectionRef = useRef(null);
-  const fallbackHeroRef = useRef(null);
-  const resolvedHeroRef = heroRef ?? fallbackHeroRef;
+function toGithubSlug(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== "github.com") return null;
+    const [owner, repo] = parsed.pathname.split("/").filter(Boolean);
+    if (!owner || !repo) return null;
+    return { owner, repo };
+  } catch {
+    return null;
+  }
+}
 
-  const portraitRef = useRef(null);
+function formatUpdatedDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short" });
+  } catch {
+    return "";
+  }
+}
+
+export default function Portfolio() {
+  const pageRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeSectionId, setActiveSectionId] = useState("hero");
+  const [repoMeta, setRepoMeta] = useState({});
+  const [reposReady, setReposReady] = useState({});
+  const [contactForm, setContactForm] = useState({ name: "", email: "", message: "" });
+  const [contactStatus, setContactStatus] = useState({ type: "", message: "" });
+  const [contactSending, setContactSending] = useState(false);
+  const { about } = usePortfolioContent();
+  const { rootRef: cursorRootRef, dotRef: cursorDotRef, ringRef: cursorRingRef } =
+    useNoirCursor(!menuOpen);
 
-  const chapters = useMemo(() => [{ id: "hero", label: "Index" }, ...NAV_ITEMS], []);
-  const activeChapterIndex = Math.max(
-    0,
-    chapters.findIndex((c) => c.id === activeSectionId)
+  useScrollAnimations(pageRef);
+
+  const chapters = useMemo(
+    () => [{ id: "hero", label: "Home" }, ...NAV_ITEMS],
+    []
   );
 
   useEffect(() => {
@@ -145,689 +319,430 @@ export default function Portfolio({ heroRef }) {
   }, []);
 
   useEffect(() => {
-    const elements = Array.from(document.querySelectorAll("[data-reveal]"));
-    if (elements.length === 0) return;
+    const controller = new AbortController();
 
-    if (!("IntersectionObserver" in window)) {
-      elements.forEach((el) => el.classList.add("is-visible"));
-      return;
+    async function load() {
+      const slugs = PROJECTS.map((p) => toGithubSlug(p.link)).filter(Boolean);
+      if (slugs.length === 0) return;
+
+      await Promise.all(
+        slugs.map(async ({ owner, repo }) => {
+          const key = `${owner}/${repo}`;
+          try {
+            const res = await fetch(`/api/github/${owner}/${repo}`, {
+              signal: controller.signal,
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data?.repo) {
+              setRepoMeta((prev) => ({ ...prev, [key]: data.repo }));
+            }
+          } finally {
+            setReposReady((prev) => ({ ...prev, [key]: true }));
+          }
+        })
+      );
     }
 
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) entry.target.classList.add("is-visible");
-        }
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -12% 0px" }
-    );
-
-    elements.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+    load().catch(() => {});
+    return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    const sections = Array.from(document.querySelectorAll("section[data-section]"));
-    if (sections.length === 0) return;
+  async function handleContactSubmit(e) {
+    e.preventDefault();
+    setContactSending(true);
+    setContactStatus({ type: "", message: "" });
 
-    if (!("IntersectionObserver" in window)) return;
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0));
-
-        if (visible.length > 0) setActiveSectionId(visible[0].target.id);
-      },
-      { threshold: [0.25, 0.4, 0.6], rootMargin: "-10% 0px -55% 0px" }
-    );
-
-    sections.forEach((s) => io.observe(s));
-    return () => io.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-    if (prefersReducedMotion) return;
-
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      const hero = document.getElementById("hero");
-      if (hero) {
-        gsap.to(".hero-photo", {
-          y: 42,
-          ease: "none",
-          scrollTrigger: {
-            trigger: hero,
-            start: "top top",
-            end: "bottom top",
-            scrub: 1.15,
-            invalidateOnRefresh: true,
-          },
-        });
-
-        gsap.to(".hero-plate", {
-          y: 18,
-          ease: "none",
-          scrollTrigger: {
-            trigger: hero,
-            start: "top top",
-            end: "bottom top",
-            scrub: 1.15,
-            invalidateOnRefresh: true,
-          },
-        });
-
-        gsap.to(".hero-float-a", {
-          x: 46,
-          y: -110,
-          rotate: 10,
-          scale: 1.05,
-          ease: "none",
-          scrollTrigger: {
-            trigger: hero,
-            start: "top bottom",
-            end: "bottom top",
-            scrub: 1.25,
-            invalidateOnRefresh: true,
-          },
-        });
-
-        gsap.to(".hero-float-b", {
-          x: -34,
-          y: 92,
-          rotate: -8,
-          scale: 1.04,
-          ease: "none",
-          scrollTrigger: {
-            trigger: hero,
-            start: "top bottom",
-            end: "bottom top",
-            scrub: 1.3,
-            invalidateOnRefresh: true,
-          },
-        });
-
-        gsap.to(".hero-vertical", {
-          opacity: 0.14,
-          ease: "none",
-          scrollTrigger: {
-            trigger: hero,
-            start: "top top",
-            end: "bottom top",
-            scrub: 1.1,
-            invalidateOnRefresh: true,
-          },
-        });
-      }
-
-      gsap.utils.toArray(".project").forEach((card) => {
-        const grid = card.querySelector(".project-visual-grid");
-        const num = card.querySelector(".project-num");
-
-        if (grid) {
-          gsap.to(grid, {
-            backgroundPosition: "0px -220px, -220px 0px",
-            ease: "none",
-            scrollTrigger: {
-              trigger: card,
-              start: "top bottom",
-              end: "bottom top",
-              scrub: 1.15,
-              invalidateOnRefresh: true,
-            },
-          });
-        }
-
-        if (num) {
-          gsap.to(num, {
-            y: -18,
-            opacity: 0.38,
-            ease: "none",
-            scrollTrigger: {
-              trigger: card,
-              start: "top 85%",
-              end: "bottom 15%",
-              scrub: 1.1,
-              invalidateOnRefresh: true,
-            },
-          });
-        }
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contactForm),
       });
-    }, rootRef);
-
-    return () => ctx.revert();
-  }, []);
-
-  useEffect(() => {
-    const heroEl = heroSectionRef.current;
-    if (!heroEl) return;
-
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-    const finePointer = window.matchMedia("(pointer: fine)").matches;
-    if (prefersReducedMotion || !finePointer) return;
-
-    const setPos = (e) => {
-      const r = heroEl.getBoundingClientRect();
-      const x = e.clientX - r.left;
-      const y = e.clientY - r.top;
-      heroEl.style.setProperty("--cursor-x", `${x}px`);
-      heroEl.style.setProperty("--cursor-y", `${y}px`);
-
-      const isMagnifying = Boolean(e.target?.closest?.("[data-magnify]"));
-      heroEl.classList.toggle("hero-magnifying", isMagnifying);
-    };
-
-    const onEnter = (e) => {
-      heroEl.classList.add("hero-cursor-on");
-      setPos(e);
-    };
-
-    const onMove = (e) => setPos(e);
-
-    const onLeave = () => {
-      heroEl.classList.remove("hero-cursor-on");
-      heroEl.classList.remove("hero-magnifying");
-    };
-
-    heroEl.addEventListener("pointerenter", onEnter);
-    heroEl.addEventListener("pointermove", onMove);
-    heroEl.addEventListener("pointerleave", onLeave);
-
-    return () => {
-      heroEl.removeEventListener("pointerenter", onEnter);
-      heroEl.removeEventListener("pointermove", onMove);
-      heroEl.removeEventListener("pointerleave", onLeave);
-    };
-  }, []);
-
-  const onProjectMouseMove = useCallback((e) => {
-    const card = e.currentTarget;
-    const r = card.getBoundingClientRect();
-    const mx = ((e.clientX - r.left) / r.width) * 100;
-    const my = ((e.clientY - r.top) / r.height) * 100;
-    card.style.setProperty("--mx", `${mx.toFixed(2)}%`);
-    card.style.setProperty("--my", `${my.toFixed(2)}%`);
-  }, []);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setContactStatus({
+          type: "error",
+          message: data.error || "Something went wrong. Please try again.",
+        });
+        return;
+      }
+      setContactStatus({ type: "success", message: "Message sent — I'll get back to you soon." });
+      setContactForm({ name: "", email: "", message: "" });
+    } catch {
+      setContactStatus({
+        type: "error",
+        message: "Could not reach the server. Start the API with npm run dev.",
+      });
+    } finally {
+      setContactSending(false);
+    }
+  }
 
   return (
-    <div className="site" ref={rootRef}>
-      <div className="chapter-indicator" aria-hidden>
-        CH. {pad2(activeChapterIndex)} / {pad2(chapters.length - 1)}
+    <div className="noir-page" ref={pageRef}>
+      <div ref={cursorRootRef} className="noir-cursor" aria-hidden="true">
+        <div ref={cursorRingRef} className="noir-cursor-ring" />
+        <div ref={cursorDotRef} className="noir-cursor-dot" />
       </div>
 
-      <header className="site-header">
-        <button
-          type="button"
-          className="menu-button"
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-          aria-expanded={menuOpen}
-          aria-controls="site-menu"
-          onClick={() => setMenuOpen((v) => !v)}
-        >
-          <span className="menu-icon" aria-hidden>
-            <span />
-            <span />
-          </span>
-          <span className="menu-text">Menu</span>
-        </button>
-
-        <div className="site-mast" aria-hidden>
-          <span>Portfolio</span>
-          <span className="mast-divider" />
-          <span>2026</span>
-        </div>
-      </header>
+      <button
+        type="button"
+        className="noir-menu"
+        aria-label={menuOpen ? "Close menu" : "Open menu"}
+        aria-expanded={menuOpen}
+        aria-controls="noir-menu"
+        onClick={() => setMenuOpen((v) => !v)}
+      >
+        <span className="noir-menu-lines" aria-hidden="true" />
+      </button>
 
       <div
-        id="site-menu"
-        className={menuOpen ? "menu-overlay is-open" : "menu-overlay"}
+        id="noir-menu"
+        className={menuOpen ? "noir-overlay is-open" : "noir-overlay"}
         role="dialog"
         aria-modal="true"
         aria-label="Site navigation"
         aria-hidden={!menuOpen}
         onClick={() => setMenuOpen(false)}
       >
-        <div className="menu-panel" onClick={(e) => e.stopPropagation()}>
-          <div className="menu-eyebrow">Navigation</div>
-          <ul className="menu-list">
-            {chapters.map((item, idx) => (
+        <div className="noir-overlay-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="noir-overlay-title">Navigation</div>
+          <ul className="noir-overlay-list">
+            {chapters.map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
-                  className="menu-link"
+                  className="noir-overlay-link"
                   onClick={() => {
                     setMenuOpen(false);
                     scrollToId(item.id);
                   }}
                 >
-                  <span className="menu-num">{pad2(idx)}</span>
-                  <span className="menu-label">{item.label}</span>
+                  {item.label}
                 </button>
               </li>
             ))}
           </ul>
-
-          <div className="menu-foot">
-            <div className="menu-foot-label">Links</div>
-            <div className="menu-foot-links">
-              <a href="https://github.com/shubhsanket" target="_blank" rel="noreferrer">
-                GitHub
-              </a>
-              <a
-                href="#contact"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setMenuOpen(false);
-                  scrollToId("contact");
-                }}
-              >
-                Contact
-              </a>
-            </div>
-          </div>
         </div>
       </div>
 
-      <main>
-        <section id="hero" ref={heroSectionRef} className="hero" data-section>
-          <div className="hero-vertical" aria-hidden>
-            ENGINEER / SYSTEMS / INTELLIGENCE
-          </div>
+      <section id="hero" className="noir-hero" aria-label="Hero">
+        <div className="noir-name" aria-hidden="true">
+          <span className="noir-name-left">SHUBH</span>
+          <span className="noir-name-right">SANKET</span>
+        </div>
 
-          <div className="hero-left" data-magnify>
-            <div className="hero-meta" data-reveal>
-              <div ref={resolvedHeroRef} className="hero-name">
-                SHUBH SANKET
-              </div>
-              <span className="meta-divider" aria-hidden />
-              <div className="hero-role">SYSTEMS / PRODUCT</div>
-            </div>
+        <figure className="noir-portrait-frame" aria-label="Portrait">
+          <img
+            className="noir-portrait"
+            src={PORTRAIT_SRC}
+            alt="Portrait"
+            draggable={false}
+            loading="eager"
+          />
+        </figure>
+      </section>
 
-            <div className="hero-type" data-reveal>
-              <div className="hero-word hero-word-xl">FULL</div>
-              <div className="hero-word hero-word-xl hero-word-shift">STACK</div>
-              <div className="hero-word hero-word-md hero-word-offset">AI / ML</div>
-              <div className="hero-word hero-word-lg hero-word-offset2">BLOCKCHAIN</div>
-              <div className="hero-word hero-word-md hero-word-offset3">SEO SYSTEMS</div>
-            </div>
+      <section id="about" className="noir-section noir-about" aria-label="About Me">
+        <div className="noir-section-inner">
+          <div className="noir-about-grid">
+            <header className="noir-about-head" data-reveal>
+              <div className="noir-eyebrow">{about.eyebrow}</div>
+              <h2 className="noir-h2">{about.title}</h2>
+              <p className="noir-about-lead">{about.lead}</p>
+            </header>
 
-            <p className="hero-subtitle" data-reveal>
-              I design and ship production-grade software: full stack applications, AI/ML systems,
-              and protocol-level infrastructure — with an editorial approach to clarity,
-              performance, and long-term maintainability.
-            </p>
-
-            <div className="hero-actions" data-reveal>
-              <a
-                className="btn btn-primary"
-                href="#projects"
-                onClick={(e) => {
-                  e.preventDefault();
-                  scrollToId("projects");
-                }}
-              >
-                Selected Work
-              </a>
-              <a
-                className="btn btn-ghost"
-                href="#contact"
-                onClick={(e) => {
-                  e.preventDefault();
-                  scrollToId("contact");
-                }}
-              >
-                Contact
-              </a>
-            </div>
-
-            <div className="hero-annotations" data-reveal>
-              <div className="anno">
-                <div className="anno-k">Edition</div>
-                <div className="anno-v">01</div>
-              </div>
-              <div className="anno">
-                <div className="anno-k">Focus</div>
-                <div className="anno-v">Systems</div>
-              </div>
-              <div className="anno">
-                <div className="anno-k">Mode</div>
-                <div className="anno-v">Build</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="hero-right" aria-label="Portrait" data-magnify>
-            <div className="hero-plate" aria-hidden />
-            <figure className="hero-portrait">
-              <img
-                ref={portraitRef}
-                className="hero-photo"
-                src={HERO_PORTRAIT_SRC}
-                alt="Portrait"
-                loading="eager"
-              />
-            </figure>
-            <div className="hero-caption" data-reveal>
-              <div className="caption-k">Caption</div>
-              <div className="caption-v">Calm interfaces. Serious engineering.</div>
-            </div>
-          </div>
-
-          <div className="hero-float hero-float-a" aria-hidden />
-          <div className="hero-float hero-float-b" aria-hidden />
-
-          <div className="hero-magnifier-layer" aria-hidden="true" inert>
-            <div className="hero-magnifier-content">
-              <div className="hero-vertical" aria-hidden>
-                ENGINEER / SYSTEMS / INTELLIGENCE
-              </div>
-
-              <div className="hero-left">
-                <div className="hero-meta">
-                  <div className="hero-name">SHUBH SANKET</div>
-                  <span className="meta-divider" aria-hidden />
-                  <div className="hero-role">SYSTEMS / PRODUCT</div>
-                </div>
-
-                <div className="hero-type">
-                  <div className="hero-word hero-word-xl">FULL</div>
-                  <div className="hero-word hero-word-xl hero-word-shift">STACK</div>
-                  <div className="hero-word hero-word-md hero-word-offset">AI / ML</div>
-                  <div className="hero-word hero-word-lg hero-word-offset2">BLOCKCHAIN</div>
-                  <div className="hero-word hero-word-md hero-word-offset3">SEO SYSTEMS</div>
-                </div>
-
-                <p className="hero-subtitle">
-                  I design and ship production-grade software: full stack applications, AI/ML
-                  systems, and protocol-level infrastructure — with an editorial approach to
-                  clarity, performance, and long-term maintainability.
+            <div className="noir-about-body" data-reveal-stagger>
+              {about.paragraphs.map((paragraph) => (
+                <p key={paragraph.slice(0, 32)} className="noir-p" data-reveal-child>
+                  {paragraph}
                 </p>
+              ))}
+            </div>
+          </div>
 
-                <div className="hero-actions">
-                  <span className="btn btn-primary" aria-hidden>
-                    Selected Work
-                  </span>
-                  <span className="btn btn-ghost" aria-hidden>
-                    Contact
-                  </span>
-                </div>
-
-                <div className="hero-annotations">
-                  <div className="anno">
-                    <div className="anno-k">Edition</div>
-                    <div className="anno-v">01</div>
-                  </div>
-                  <div className="anno">
-                    <div className="anno-k">Focus</div>
-                    <div className="anno-v">Systems</div>
-                  </div>
-                  <div className="anno">
-                    <div className="anno-k">Mode</div>
-                    <div className="anno-v">Build</div>
-                  </div>
-                </div>
+          <div className="noir-about-highlights" data-reveal-stagger>
+            {about.highlights.map((item) => (
+              <div key={item.label} className="noir-about-highlight" data-reveal-child>
+                <div className="noir-about-highlight-k">{item.label}</div>
+                <div className="noir-about-highlight-v">{item.value}</div>
               </div>
-
-              <div className="hero-right" aria-hidden>
-                <div className="hero-plate" aria-hidden />
-                <figure className="hero-portrait">
-                  <img
-                    className="hero-photo"
-                    src={HERO_PORTRAIT_SRC}
-                    alt=""
-                    draggable={false}
-                  />
-                </figure>
-                <div className="hero-caption">
-                  <div className="caption-k">Caption</div>
-                  <div className="caption-v">Calm interfaces. Serious engineering.</div>
-                </div>
-              </div>
-
-              <div className="hero-float hero-float-a" aria-hidden />
-              <div className="hero-float hero-float-b" aria-hidden />
-            </div>
+            ))}
           </div>
+        </div>
+      </section>
 
-          <div className="hero-cursor" aria-hidden />
-        </section>
-
-        <section id="full-stack" className="chapter" data-section>
-          <div className="chapter-inner">
-            <div className="chapter-head" data-reveal>
-              <div className="eyebrow">01 — Discipline</div>
-              <h2>Full Stack Engineering</h2>
+      {DISCIPLINES.map((d) => (
+        <section
+          key={d.id}
+          id={d.id}
+          className="noir-section noir-section-split"
+          aria-label={d.title}
+          data-reveal
+        >
+          <div className="noir-section-inner">
+            <div className="noir-section-head">
+              <div className="noir-eyebrow">{d.eyebrow}</div>
+              <h2 className="noir-h2">{d.title}</h2>
             </div>
-            <div className="chapter-body" data-reveal>
-              <p className="chapter-desc">
-                Architectural calm: clean boundaries, measurable performance, and maintainable
-                systems that scale without sacrificing ergonomics.
-              </p>
-              <ul className="skill-list">
-                <li>Component systems & design primitives</li>
-                <li>APIs, data modeling, and service contracts</li>
-                <li>Performance budgets & observability</li>
-                <li>Production-grade DX and tooling</li>
+            <div className="noir-section-body">
+              <p className="noir-p">{d.description}</p>
+              <ul className="noir-bullets">
+                {d.bullets.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
               </ul>
             </div>
           </div>
         </section>
+      ))}
 
-        <section id="ai-ml" className="chapter" data-section>
-          <div className="chapter-inner">
-            <div className="chapter-head" data-reveal>
-              <div className="eyebrow">02 — Discipline</div>
-              <h2>AI/ML Systems</h2>
-            </div>
-            <div className="chapter-body" data-reveal>
-              <p className="chapter-desc">
-                From prototype to production: evaluation-first pipelines, safety-minded UX, and
-                deployment patterns that respect latency, cost, and reliability.
-              </p>
-              <ul className="skill-list">
-                <li>RAG, retrieval strategy, and data quality</li>
-                <li>Model serving, caching, and latency control</li>
-                <li>Human-in-the-loop workflows & guardrails</li>
-                <li>Instrumentation & continuous evaluation</li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <section id="blockchain" className="chapter" data-section>
-          <div className="chapter-inner">
-            <div className="chapter-head" data-reveal>
-              <div className="eyebrow">03 — Discipline</div>
-              <h2>Blockchain Infrastructure</h2>
-            </div>
-            <div className="chapter-body" data-reveal>
-              <p className="chapter-desc">
-                Protocol-aware engineering: clarity around trust surfaces, deterministic behavior,
-                and composable architecture designed for long-lived systems.
-              </p>
-              <ul className="skill-list">
-                <li>Smart contracts & on-chain verification</li>
-                <li>Indexing, events, and off-chain services</li>
-                <li>Security mindset & failure-mode design</li>
-                <li>Developer UX for Web3 products</li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <section id="seo" className="chapter" data-section>
-          <div className="chapter-inner">
-            <div className="chapter-head" data-reveal>
-              <div className="eyebrow">04 — Discipline</div>
-              <h2>SEO & Growth Intelligence</h2>
-            </div>
-            <div className="chapter-body" data-reveal>
-              <p className="chapter-desc">
-                Growth as engineering: technical SEO, performance, and instrumentation as a
-                compounding system — not a checklist.
-              </p>
-              <ul className="skill-list">
-                <li>Core Web Vitals & rendering strategy</li>
-                <li>Programmatic SEO systems</li>
-                <li>Analytics integrity & event design</li>
-                <li>Content architecture for discovery</li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <section id="projects" className="projects" data-section>
-          <div className="section-head" data-reveal>
-            <div className="eyebrow">05 — Gallery</div>
-            <h2>Selected Projects</h2>
-            <p className="section-desc">
+      <section id="projects" className="noir-section" aria-label="Selected Projects" data-reveal>
+        <div className="noir-section-inner">
+          <div className="noir-section-head">
+            <div className="noir-eyebrow">06 — Gallery</div>
+            <h2 className="noir-h2">Selected Projects</h2>
+            <p className="noir-p noir-p-wide">
               Editorial project panels — sparse text, quiet hierarchy, and a focus on systems.
             </p>
           </div>
 
-          <div className="projects-list">
-            {PROJECTS.map((p) => (
-              <article
-                key={p.num}
-                className="project"
-                data-reveal
-                onMouseMove={onProjectMouseMove}
-              >
-                <div className="project-visual" aria-hidden>
-                  <div className="project-num">{p.num}</div>
-                  <div className="project-visual-grid" />
-                </div>
-                <div className="project-body">
-                  <div className="project-meta">{p.category}</div>
-                  <h3 className="project-title">{p.title}</h3>
-                  <p className="project-desc">{p.description}</p>
-                  <div className="project-tags" aria-label="Project tags">
-                    {p.tags.map((t) => (
-                      <span key={t} className="tag">
-                        {t}
-                      </span>
-                    ))}
+          <div className="noir-project-grid">
+            {PROJECTS.map((p) => {
+              const slug = toGithubSlug(p.link);
+              const key = slug ? `${slug.owner}/${slug.repo}` : "";
+              const meta = key ? repoMeta[key] : undefined;
+              const repoLoaded = key ? Boolean(reposReady[key]) : true;
+              const homepage = typeof meta?.homepage === "string" ? meta.homepage.trim() : "";
+              const showHomepage = Boolean(homepage);
+
+              return (
+                <article key={p.num} className="noir-project" data-reveal>
+                  <div className="noir-project-num" aria-hidden="true">
+                    {p.num}
                   </div>
-                  <a className="project-link" href={p.link} target="_blank" rel="noreferrer">
-                    View Repository
-                  </a>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+                  <div className="noir-project-body">
+                    <div className="noir-project-meta">{p.category}</div>
+                    <h3 className="noir-h3">{p.title}</h3>
+                    <p className="noir-p">{p.description}</p>
 
-        <section id="research" className="lists" data-section>
-          <div className="section-head" data-reveal>
-            <div className="eyebrow">06 — Studio</div>
-            <h2>Research & Experiments</h2>
-            <p className="section-desc">Ongoing explorations — built as systems, written as notes.</p>
+                    <div className="noir-tags" aria-label="Project tags">
+                      {p.tags.map((t) => (
+                        <span key={t} className="noir-tag">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+
+                    {!repoLoaded ? (
+                      <div className="noir-project-stats" aria-label="Repository stats">
+                        <span className="noir-muted">Fetching GitHub…</span>
+                      </div>
+                    ) : meta ? (
+                      <div className="noir-project-stats" aria-label="Repository stats">
+                        <span>★ {meta.stargazers_count ?? 0}</span>
+                        {meta.language ? <span>{meta.language}</span> : null}
+                        {meta.updated_at ? (
+                          <span>Updated {formatUpdatedDate(meta.updated_at)}</span>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    <div className="noir-project-links">
+                      <a href={p.link} target="_blank" rel="noreferrer">
+                        GitHub
+                      </a>
+                      {showHomepage ? (
+                        <a href={homepage} target="_blank" rel="noreferrer">
+                          Live
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section id="research" className="noir-section" aria-label="Research & Experiments" data-reveal>
+        <div className="noir-section-inner">
+          <div className="noir-section-head">
+            <div className="noir-eyebrow">07 — Studio</div>
+            <h2 className="noir-h2">Research & Experiments</h2>
+            <p className="noir-p noir-p-wide">
+              Ongoing explorations — built as systems, written as notes.
+            </p>
           </div>
 
-          <div className="list-grid">
+          <div className="noir-card-grid">
             {RESEARCH_ITEMS.map((item) => (
-              <div key={item.code} className="list-item" data-reveal>
-                <div className="list-code">{item.code}</div>
-                <div className="list-main">
-                  <div className="list-title">{item.title}</div>
-                  <div className="list-meta">{item.meta}</div>
-                  <div className="list-desc">{item.description}</div>
+              <div key={item.code} className="noir-card" data-reveal>
+                <div className="noir-card-code">{item.code}</div>
+                <div className="noir-card-main">
+                  <div className="noir-card-title">{item.title}</div>
+                  <div className="noir-card-meta">{item.meta}</div>
+                  <div className="noir-card-desc">{item.description}</div>
                 </div>
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section id="tech-stack" className="stack" data-section>
-          <div className="section-head" data-reveal>
-            <div className="eyebrow">07 — Inventory</div>
-            <h2>Tech Stack</h2>
-            <p className="section-desc">A restrained set of tools — chosen for leverage.</p>
+      <section id="tech-stack" className="noir-section" aria-label="Tech Stack" data-reveal>
+        <div className="noir-section-inner">
+          <div className="noir-section-head">
+            <div className="noir-eyebrow">08 — Inventory</div>
+            <h2 className="noir-h2">Tech Stack</h2>
+            <p className="noir-p noir-p-wide">A restrained set of tools — chosen for leverage.</p>
           </div>
 
-          <div className="stack-grid" data-reveal>
+          <div className="noir-chip-grid" aria-label="Tech stack list" data-reveal-stagger>
             {TECH_STACK.map((t) => (
-              <div key={t} className="stack-chip">
+              <div key={t} className="noir-chip" data-reveal-child>
                 {t}
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section id="case-studies" className="lists" data-section>
-          <div className="section-head" data-reveal>
-            <div className="eyebrow">08 — Field Notes</div>
-            <h2>Case Studies</h2>
-            <p className="section-desc">Available on request — structured, measurable, and calm.</p>
+      <section id="case-studies" className="noir-section" aria-label="Case Studies" data-reveal>
+        <div className="noir-section-inner">
+          <div className="noir-section-head">
+            <div className="noir-eyebrow">09 — Field Notes</div>
+            <h2 className="noir-h2">Case Studies</h2>
+            <p className="noir-p noir-p-wide">
+              Available on request — structured, measurable, and calm.
+            </p>
           </div>
 
-          <div className="list-grid">
+          <div className="noir-card-grid">
             {CASE_STUDIES.map((item) => (
-              <div key={item.code} className="list-item" data-reveal>
-                <div className="list-code">{item.code}</div>
-                <div className="list-main">
-                  <div className="list-title">{item.title}</div>
-                  <div className="list-meta">{item.meta}</div>
-                  <div className="list-desc">{item.description}</div>
+              <div key={item.code} className="noir-card" data-reveal>
+                <div className="noir-card-code">{item.code}</div>
+                <div className="noir-card-main">
+                  <div className="noir-card-title">{item.title}</div>
+                  <div className="noir-card-meta">{item.meta}</div>
+                  <div className="noir-card-desc">{item.description}</div>
                 </div>
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section id="contact" className="contact" data-section>
-          <div className="contact-inner">
-            <div className="section-head" data-reveal>
-              <div className="eyebrow">09 — Contact</div>
-              <h2>Contact / Collaboration</h2>
-              <p className="section-desc">If you're building something precise — let's collaborate.</p>
+      <section id="contact" className="noir-section" aria-label="Contact / Collaboration" data-reveal>
+        <div className="noir-section-inner">
+          <div className="noir-section-head">
+            <div className="noir-eyebrow">10 — Contact</div>
+            <h2 className="noir-h2">Contact / Collaboration</h2>
+            <p className="noir-p noir-p-wide">
+              If you're building something precise — let's collaborate.
+            </p>
+          </div>
+
+          <div className="noir-contact-grid">
+            <div className="noir-contact-card">
+              <div className="noir-contact-k">Email</div>
+              <a
+                className="noir-contact-v"
+                href="mailto:shubhsanket.developer@gmail.com"
+              >
+                shubhsanket.developer@gmail.com
+              </a>
             </div>
 
-            <div className="contact-grid" data-reveal>
-              <div className="contact-block">
-                <div className="contact-k">Email</div>
-                <a className="contact-v" href="mailto:hello@shubh.dev">
-                  hello@shubh.dev
+            <div className="noir-contact-card">
+              <div className="noir-contact-k">Links</div>
+              <div className="noir-contact-links">
+                <a href="https://github.com/shubhsanket" target="_blank" rel="noreferrer">
+                  GitHub
+                </a>
+                <a href="https://linkedin.com/in/shubh-sanket" target="_blank" rel="noreferrer">
+                  LinkedIn
+                </a>
+                <a href="https://twitter.com/shubh_sanket" target="_blank" rel="noreferrer">
+                  X
+                </a>
+                <a
+                  href="https://instagram.com/shubhsanket"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Instagram
                 </a>
               </div>
-
-              <div className="contact-block">
-                <div className="contact-k">Links</div>
-                <div className="contact-links">
-                  <a href="https://github.com/shubhsanket" target="_blank" rel="noreferrer">
-                    GitHub
-                  </a>
-                  <a href="https://linkedin.com/in/shubh-sanket" target="_blank" rel="noreferrer">
-                    LinkedIn
-                  </a>
-                  <a href="https://twitter.com/shubh_sanket" target="_blank" rel="noreferrer">
-                    X
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            <div className="contact-foot" data-reveal>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  window.location.href = "mailto:hello@shubh.dev";
-                }}
-              >
-                Start a conversation
-              </button>
             </div>
           </div>
-        </section>
-      </main>
+
+          <form className="noir-contact-form" onSubmit={handleContactSubmit} data-reveal>
+            <div className="noir-form-row">
+              <label className="noir-form-field">
+                <span className="noir-contact-k">Name</span>
+                <input
+                  className="noir-input"
+                  type="text"
+                  name="name"
+                  autoComplete="name"
+                  required
+                  value={contactForm.name}
+                  onChange={(e) =>
+                    setContactForm((f) => ({ ...f, name: e.target.value }))
+                  }
+                />
+              </label>
+              <label className="noir-form-field">
+                <span className="noir-contact-k">Email</span>
+                <input
+                  className="noir-input"
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  required
+                  value={contactForm.email}
+                  onChange={(e) =>
+                    setContactForm((f) => ({ ...f, email: e.target.value }))
+                  }
+                />
+              </label>
+            </div>
+            <label className="noir-form-field noir-form-field-full">
+              <span className="noir-contact-k">Message</span>
+              <textarea
+                className="noir-textarea"
+                name="message"
+                rows={5}
+                required
+                value={contactForm.message}
+                onChange={(e) =>
+                  setContactForm((f) => ({ ...f, message: e.target.value }))
+                }
+              />
+            </label>
+            <div className="noir-form-actions">
+              <button type="submit" className="noir-btn" disabled={contactSending}>
+                {contactSending ? "Sending…" : "Send message"}
+              </button>
+              {contactStatus.message ? (
+                <p
+                  className={
+                    contactStatus.type === "error"
+                      ? "noir-form-status noir-form-status-error"
+                      : "noir-form-status noir-form-status-success"
+                  }
+                  role="status"
+                >
+                  {contactStatus.message}
+                </p>
+              ) : null}
+            </div>
+          </form>
+        </div>
+      </section>
     </div>
   );
 }
