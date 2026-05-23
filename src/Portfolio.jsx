@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePortfolioContent } from "./hooks/usePortfolioContent";
 import { useScrollAnimations } from "./hooks/useScrollAnimations";
+import { sendContactMessage } from "./lib/contactMessage";
 
 const INTERACTIVE_SELECTOR =
   "a, button, input, textarea, select, label, [role='button'], [role='link']";
@@ -354,25 +355,19 @@ export default function Portfolio() {
     setContactStatus({ type: "", message: "" });
 
     try {
-      const res = await fetch("/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(contactForm),
+      await sendContactMessage(contactForm);
+      setContactStatus({
+        type: "success",
+        message: "Message sent — I'll get back to you soon.",
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setContactStatus({
-          type: "error",
-          message: data.error || "Something went wrong. Please try again.",
-        });
-        return;
-      }
-      setContactStatus({ type: "success", message: "Message sent — I'll get back to you soon." });
       setContactForm({ name: "", email: "", message: "" });
-    } catch {
+    } catch (err) {
       setContactStatus({
         type: "error",
-        message: "Could not reach the server. Start the API with npm run dev.",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Could not send your message. Check Firebase setup or run npm run dev.",
       });
     } finally {
       setContactSending(false);
@@ -659,17 +654,15 @@ export default function Portfolio() {
             <div className="noir-contact-card">
               <div className="noir-contact-k">Links</div>
               <div className="noir-contact-links">
-                <a href="https://github.com/shubhsanket" target="_blank" rel="noreferrer">
+                <a
+                  href="https://github.com/designershubh1208-pixel"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   GitHub
                 </a>
-                <a href="https://linkedin.com/in/shubh-sanket" target="_blank" rel="noreferrer">
-                  LinkedIn
-                </a>
-                <a href="https://twitter.com/shubh_sanket" target="_blank" rel="noreferrer">
-                  X
-                </a>
                 <a
-                  href="https://instagram.com/shubhsanket"
+                  href="https://www.instagram.com/webtech_shubh/"
                   target="_blank"
                   rel="noreferrer"
                 >

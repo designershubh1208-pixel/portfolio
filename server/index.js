@@ -1,8 +1,14 @@
+import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import {
+  getAdminFirestore,
+  isFirebaseAdminConfigured,
+  saveMessageToFirestore,
+} from "./firebaseAdmin.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "data");
@@ -77,9 +83,17 @@ app.post("/api/contact", async (req, res) => {
   }
 
   const entry = { name, email, message, at: new Date().toISOString() };
-  const contactsPath = path.join(DATA_DIR, "contacts.json");
 
   try {
+    if (isFirebaseAdminConfigured()) {
+      const id = await saveMessageToFirestore(entry);
+      if (id) {
+        res.json({ ok: true, id, channel: "firebase" });
+        return;
+      }
+    }
+
+    const contactsPath = path.join(DATA_DIR, "contacts.json");
     let list = [];
     try {
       list = JSON.parse(await fs.readFile(contactsPath, "utf-8"));
@@ -89,12 +103,51 @@ app.post("/api/contact", async (req, res) => {
     if (!Array.isArray(list)) list = [];
     list.push(entry);
     await fs.writeFile(contactsPath, JSON.stringify(list, null, 2));
-    res.json({ ok: true });
+    res.json({ ok: true, channel: "file" });
   } catch {
     res.status(500).json({ ok: false, error: "Could not save your message." });
   }
 });
 
+app.get("/api/messages", async (req, res) => {
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret || req.headers["x-admin-secret"] !== secret) {
+    res.status(401).json({ ok: false, error: "Unauthorized." });
+    return;
+  }
+
+  if (!isFirebaseAdminConfigured()) {
+    try {
+      const contactsPath = path.join(DATA_DIR, "contacts.json");
+      const list = JSON.parse(await fs.readFile(contactsPath, "utf-8"));
+      res.json({ ok: true, messages: Array.isArray(list) ? list : [] });
+    } catch {
+      res.json({ ok: true, messages: [] });
+    }
+    return;
+  }
+
+  try {
+    const db = getAdminFirestore();
+    const snap = await db
+      .collection("messages")
+      .orderBy("createdAt", "desc")
+      .limit(50)
+      .get();
+
+    const messages = snap.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.()?.toISOString?.() ?? null,
+    }));
+
+    res.json({ ok: true, messages });
+  } catch {
+    res.status(500).json({ ok: false, error: "Failed to load messages." });
+  }
+});
+
 app.listen(PORT, () => {
-  console.log(`Portfolio API listening on http://localhost:${PORT}`);
+  const firebase = isFirebaseAdminConfigured() ? "Firebase Admin on" : "Firebase Admin off";
+  console.log(`Portfolio API listening on http://localhost:${PORT} (${firebase})`);
 });
