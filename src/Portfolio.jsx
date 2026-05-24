@@ -166,30 +166,48 @@ const DISCIPLINES = [
 const PROJECTS = [
   {
     num: "01",
-    title: "User Panel Dashboard",
-    category: "Full Stack",
+    title: "IntrusionX",
+    category: "Security · Graph AI",
     description:
-      "A modular admin interface for user management and analytics — designed as a calm control surface with performance-first UI patterns.",
-    tags: ["React", "UI Systems", "Analytics"],
-    link: "https://github.com/shubhsanket/user-panel-dashboard",
+      "Dominoes in the Dark — predicting cascading attack paths using TigerGraph and graph intelligence for intrusion analysis.",
+    tags: ["TigerGraph", "TypeScript", "Security"],
+    link: "https://github.com/designershubh1208-pixel/IntrusionX",
   },
   {
     num: "02",
-    title: "ProvenDev",
-    category: "Blockchain",
+    title: "SentinelChain",
+    category: "Blockchain · AI",
     description:
-      "On-chain verification for developer reputation — a trust layer that turns credentials into portable, auditable proof.",
-    tags: ["Solidity", "EVM", "Next.js"],
-    link: "https://github.com/shubhsanket/ProvenDev",
+      "AI smart contract analysis in real time — before and after exploit scenarios to surface risk with clarity.",
+    tags: ["Solidity", "TypeScript", "AI"],
+    link: "https://github.com/designershubh1208-pixel/Sentinel-chain",
   },
   {
     num: "03",
-    title: "On-Block",
-    category: "Infrastructure",
+    title: "OnBlock",
+    category: "Web3 · Payments",
     description:
-      "Decentralized publishing on Polygon with IPFS storage — built for ownership, permanence, and resilient distribution.",
-    tags: ["Polygon", "IPFS", "Protocols"],
-    link: "https://github.com/shubhsanket/on-block",
+      "Invisible rail for payments and transactions in two clicks — lightweight on-chain commerce flows.",
+    tags: ["TypeScript", "Web3", "Payments"],
+    link: "https://github.com/designershubh1208-pixel/on-block",
+  },
+  {
+    num: "04",
+    title: "DeFAI",
+    category: "AI Agents · Governance",
+    description:
+      "Governance-first autonomous AI agent that automates digital transactions using Gemini, smart-wallet policies, and simulated commerce.",
+    tags: ["Gemini AI", "Smart Wallet", "Agents"],
+    link: "https://github.com/designershubh1208-pixel/DeFAI",
+  },
+  {
+    num: "05",
+    title: "Marvel",
+    category: "Frontend · Creative",
+    description:
+      "Marvel Cinematic Universe experience — cinematic UI built as an expressive front-end exploration.",
+    tags: ["React", "UI", "Creative"],
+    link: "https://github.com/designershubh1208-pixel/marvel",
   },
 ];
 
@@ -284,6 +302,61 @@ function formatUpdatedDate(iso) {
   }
 }
 
+function ProjectCard({ project, repoMeta, reposReady }) {
+  const slug = toGithubSlug(project.link);
+  const key = slug ? `${slug.owner}/${slug.repo}` : "";
+  const meta = key ? repoMeta[key] : undefined;
+  const repoLoaded = key ? Boolean(reposReady[key]) : true;
+  const homepage = typeof meta?.homepage === "string" ? meta.homepage.trim() : "";
+  const showHomepage = Boolean(homepage);
+
+  return (
+    <article className="noir-project">
+      <div className="noir-project-num" aria-hidden="true">
+        {project.num}
+      </div>
+      <div className="noir-project-body">
+        <div className="noir-project-meta">{project.category}</div>
+        <h3 className="noir-h3">{project.title}</h3>
+        <p className="noir-p noir-project-desc">{project.description}</p>
+
+        <div className="noir-tags" aria-label="Project tags">
+          {project.tags.map((t) => (
+            <span key={t} className="noir-tag">
+              {t}
+            </span>
+          ))}
+        </div>
+
+        {!repoLoaded ? (
+          <div className="noir-project-stats" aria-label="Repository stats">
+            <span className="noir-muted">Fetching GitHub…</span>
+          </div>
+        ) : meta ? (
+          <div className="noir-project-stats" aria-label="Repository stats">
+            <span>★ {meta.stargazers_count ?? 0}</span>
+            {meta.language ? <span>{meta.language}</span> : null}
+            {meta.updated_at ? (
+              <span>Updated {formatUpdatedDate(meta.updated_at)}</span>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="noir-project-links">
+          <a href={project.link} target="_blank" rel="noreferrer">
+            GitHub
+          </a>
+          {showHomepage ? (
+            <a href={homepage} target="_blank" rel="noreferrer">
+              Live
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function Portfolio() {
   const pageRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -302,6 +375,8 @@ export default function Portfolio() {
     () => [{ id: "hero", label: "Home" }, ...NAV_ITEMS],
     []
   );
+
+  const marqueeProjects = useMemo(() => [...PROJECTS, ...PROJECTS], []);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -503,61 +578,17 @@ export default function Portfolio() {
             </p>
           </div>
 
-          <div className="noir-project-grid">
-            {PROJECTS.map((p) => {
-              const slug = toGithubSlug(p.link);
-              const key = slug ? `${slug.owner}/${slug.repo}` : "";
-              const meta = key ? repoMeta[key] : undefined;
-              const repoLoaded = key ? Boolean(reposReady[key]) : true;
-              const homepage = typeof meta?.homepage === "string" ? meta.homepage.trim() : "";
-              const showHomepage = Boolean(homepage);
-
-              return (
-                <article key={p.num} className="noir-project" data-reveal>
-                  <div className="noir-project-num" aria-hidden="true">
-                    {p.num}
-                  </div>
-                  <div className="noir-project-body">
-                    <div className="noir-project-meta">{p.category}</div>
-                    <h3 className="noir-h3">{p.title}</h3>
-                    <p className="noir-p">{p.description}</p>
-
-                    <div className="noir-tags" aria-label="Project tags">
-                      {p.tags.map((t) => (
-                        <span key={t} className="noir-tag">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-
-                    {!repoLoaded ? (
-                      <div className="noir-project-stats" aria-label="Repository stats">
-                        <span className="noir-muted">Fetching GitHub…</span>
-                      </div>
-                    ) : meta ? (
-                      <div className="noir-project-stats" aria-label="Repository stats">
-                        <span>★ {meta.stargazers_count ?? 0}</span>
-                        {meta.language ? <span>{meta.language}</span> : null}
-                        {meta.updated_at ? (
-                          <span>Updated {formatUpdatedDate(meta.updated_at)}</span>
-                        ) : null}
-                      </div>
-                    ) : null}
-
-                    <div className="noir-project-links">
-                      <a href={p.link} target="_blank" rel="noreferrer">
-                        GitHub
-                      </a>
-                      {showHomepage ? (
-                        <a href={homepage} target="_blank" rel="noreferrer">
-                          Live
-                        </a>
-                      ) : null}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+          <div className="noir-project-marquee" aria-label="Project showcase carousel">
+            <div className="noir-project-track">
+              {marqueeProjects.map((p, index) => (
+                <ProjectCard
+                  key={`${p.num}-${index}`}
+                  project={p}
+                  repoMeta={repoMeta}
+                  reposReady={reposReady}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
